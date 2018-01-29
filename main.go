@@ -51,7 +51,18 @@ type EventInvolvedObject struct {
 // Sends a message to the Slack channel about the Event.
 func send_message(e Event, color string) error {
 	api := slack.New(os.Getenv("SLACK_TOKEN"))
+	pods := os.Getenv("POD_NAMES")
 	params := slack.PostMessageParameters{}
+
+	if len(pods) > 0 {
+		names := strings.Split(pods, ",")
+		for _, name := range names {
+			if !strings.Contains(name, e.Metadata.Name) {
+				return nil
+			}
+		}
+	}
+
 	attachment := slack.Attachment{
 		// The fallback message shows in clients such as IRC or OS X notifications.
 		Fallback: e.Message,
@@ -109,8 +120,16 @@ func send_message(e Event, color string) error {
 }
 
 func main() {
-	url := fmt.Sprintf("http://localhost:8001/api/v1/events?watch=true")
-	req, err := http.NewRequest("GET", url, nil)
+	namespace := os.Getenv("EVENT_NAMESPACE")
+	reason := os.Getenv("EVENT_REASON")
+
+	url := "http://localhost:8001/api/v1"
+	if len(namespace) > 0 {
+		url += "/namespaces/" + namespace
+	}
+	url += "/events?watch=true"
+
+	req, err := http.NewRequest("GET", fmt.Sprintf(url), nil)
 	if err != nil {
 		log.Fatal("NewRequest: ", err)
 	}
@@ -147,29 +166,20 @@ func main() {
 		send := false
 		color := ""
 
-		// @todo refactor the configuration of which things to post.
-		if e.Reason == "SuccessfulCreate" {
+		// @todo 여러 reason 보낼 수 있게 수정이 필요함.
+		if e.Reason == reason {
 			send = true
 			color = "good"
-		} else if e.Reason == "NodeReady" {
-			send = true
-			color = "good"
-		} else if e.Reason == "NodeNotReady" {
-			send = true
-			color = "warning"
-		} else if e.Reason == "NodeOutOfDisk" {
-			send = true
-			color = "danger"
 		}
 
 		// For now, dont alert multiple times, except if it's a backoff
 		if e.Count > 1 {
 			send = false
 		}
-		if e.Reason == "BackOff" && e.Count == 3 {
-			send = true
-			color = "danger"
-		}
+		//if e.Reason == "BackOff" && e.Count == 3 {
+		//	send = true
+		//	color = "danger"
+		//}
 
 		// Do not send any events that are more than 1 minute old.
 		// This assumes events are processed quickly (very likely)
