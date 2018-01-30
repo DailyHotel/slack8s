@@ -48,20 +48,38 @@ type EventInvolvedObject struct {
 	Kind string `json:"kind"`
 }
 
-// Sends a message to the Slack channel about the Event.
-func send_message(e Event, color string) error {
-	api := slack.New(os.Getenv("SLACK_TOKEN"))
+func filter_event(metadataName string, eventReason string) bool {
+	reason := os.Getenv("EVENT_REASON")
 	pods := os.Getenv("POD_NAMES")
-	params := slack.PostMessageParameters{}
+
+	complete := false
 
 	if len(pods) > 0 {
 		names := strings.Split(pods, ",")
 		for _, name := range names {
-			if !strings.Contains(name, e.Metadata.Name) {
-				return nil
+			if strings.Contains(metadataName, name) {
+				complete = true
+				break
 			}
 		}
 	}
+
+	log.Printf("env Reason: %s\nPodNames: %s\n\n", reason, pods)
+
+	// @todo 여러 reason 보낼 수 있게 수정이 필요함.
+	if eventReason == reason {
+		complete = true
+	}
+
+	log.Printf("Complete: %s\nColor: %s\ne.Reason == reaosn: %s\n", complete, eventReason==reason)
+
+	return complete
+}
+
+// Sends a message to the Slack channel about the Event.
+func send_message(e Event, color string) error {
+	api := slack.New(os.Getenv("SLACK_TOKEN"))
+	params := slack.PostMessageParameters{}
 
 	attachment := slack.Attachment{
 		// The fallback message shows in clients such as IRC or OS X notifications.
@@ -107,6 +125,7 @@ func send_message(e Event, color string) error {
 	} else if strings.HasPrefix(e.Reason, "Fail") {
 		attachment.Color = "danger"
 	}
+
 	params.Attachments = []slack.Attachment{attachment}
 
 	channelID, timestamp, err := api.PostMessage(os.Getenv("SLACK_CHANNEL"), "", params)
@@ -121,7 +140,6 @@ func send_message(e Event, color string) error {
 
 func main() {
 	namespace := os.Getenv("EVENT_NAMESPACE")
-	reason := os.Getenv("EVENT_REASON")
 
 	url := "http://localhost:8001/api/v1"
 	if len(namespace) > 0 {
@@ -161,25 +179,20 @@ func main() {
 		e := r.Object
 
 		// Log all events for now.
-		log.Printf("Reason: %s\nMessage: %s\nCount: %s\nFirstTimestamp: %s\nLastTimestamp: %s\n\n", e.Reason, e.Message, strconv.Itoa(e.Count), e.FirstTimestamp, e.LastTimestamp)
+		log.Printf("Reason: %s\nMessage: %s\nCount: %s\nFirstTimestamp: %s\nMetaData: %s\n\n", e.Reason, e.Message, strconv.Itoa(e.Count), e.FirstTimestamp, e.Metadata.Name)
 
 		send := false
 		color := ""
 
-		// @todo 여러 reason 보낼 수 있게 수정이 필요함.
-		if e.Reason == reason {
+		if filter_event(e.Metadata.Name, e.Reason) {
 			send = true
-			color = "good"
+			color = "green"
 		}
 
 		// For now, dont alert multiple times, except if it's a backoff
 		if e.Count > 1 {
 			send = false
 		}
-		//if e.Reason == "BackOff" && e.Count == 3 {
-		//	send = true
-		//	color = "danger"
-		//}
 
 		// Do not send any events that are more than 1 minute old.
 		// This assumes events are processed quickly (very likely)
