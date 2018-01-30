@@ -184,7 +184,7 @@ func main() {
 
 		if filter_event(e.Metadata.Name, e.Reason) {
 			send = true
-			color = "green"
+			color = "good"
 		}
 
 		// For now, dont alert multiple times, except if it's a backoff
