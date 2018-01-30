@@ -54,6 +54,13 @@ func filter_event(metadataName string, eventReason string) bool {
 
 	complete := false
 
+	// @todo 여러 reason 보낼 수 있게 수정이 필요함.
+	if eventReason == reason {
+		complete = true
+	} else {
+		return complete
+	}
+
 	if len(pods) > 0 {
 		names := strings.Split(pods, ",")
 		for _, name := range names {
@@ -63,15 +70,6 @@ func filter_event(metadataName string, eventReason string) bool {
 			}
 		}
 	}
-
-	log.Printf("env Reason: %s\nPodNames: %s\n\n", reason, pods)
-
-	// @todo 여러 reason 보낼 수 있게 수정이 필요함.
-	if eventReason == reason {
-		complete = true
-	}
-
-	log.Printf("Complete: %s\nColor: %s\ne.Reason == reaosn: %s\n", complete, eventReason==reason)
 
 	return complete
 }
