@@ -61,12 +61,14 @@ func filter_event(metadataName string, eventReason string) bool {
 		return complete
 	}
 
+
 	if len(pods) > 0 {
 		names := strings.Split(pods, ",")
 		for _, name := range names {
 			if strings.Contains(metadataName, name) {
-				complete = true
-				break
+				return complete
+			} else {
+				complete = false
 			}
 		}
 	}
@@ -82,11 +84,11 @@ func custom_deploy_attachment(e Event) slack.Attachment {
 		Fallback: e.Message,
 		Fields: []slack.AttachmentField{
 			slack.AttachmentField{
-				Title: "PodName",
+				Title: "Pod-Name",
 				Value: e.Metadata.Name,
 			},
 			slack.AttachmentField{
-				Title: "DeployedImageTag",
+				Title: "Deployed-Image-Tag",
 				Value: imageTag,
 			},
 		},
@@ -202,9 +204,6 @@ func main() {
 			log.Fatal("Decode: ", err)
 		}
 		e := r.Object
-
-		// Log all events for now.
-		log.Printf("Reason: %s\nMessage: %s\nCount: %s\nFirstTimestamp: %s\nMetaData: %s\n\n", e.Reason, e.Message, strconv.Itoa(e.Count), e.FirstTimestamp, e.Metadata.Name)
 
 		send := false
 		color := ""
