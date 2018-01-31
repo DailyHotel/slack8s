@@ -66,6 +66,7 @@ func filter_event(metadataName string, eventReason string) bool {
 		names := strings.Split(pods, ",")
 		for _, name := range names {
 			if strings.Contains(metadataName, name) {
+				complete = true
 				return complete
 			} else {
 				complete = false
