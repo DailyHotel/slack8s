@@ -74,11 +74,28 @@ func filter_event(metadataName string, eventReason string) bool {
 	return complete
 }
 
-// Sends a message to the Slack channel about the Event.
-func send_message(e Event, color string) error {
-	api := slack.New(os.Getenv("SLACK_TOKEN"))
-	params := slack.PostMessageParameters{}
+func custom_deploy_attachment(e Event) slack.Attachment {
+	imageTag := strings.TrimPrefix(e.Message, "Successfully pulled image ")
 
+	attachment := slack.Attachment{
+		// The fallback message shows in clients such as IRC or OS X notifications.
+		Fallback: e.Message,
+		Fields: []slack.AttachmentField{
+			slack.AttachmentField{
+				Title: "PodName",
+				Value: e.Metadata.Name,
+			},
+			slack.AttachmentField{
+				Title: "DeployedImageTag",
+				Value: imageTag,
+			},
+		},
+	}
+
+	return attachment
+}
+
+func general_attachment(e Event) slack.Attachment {
 	attachment := slack.Attachment{
 		// The fallback message shows in clients such as IRC or OS X notifications.
 		Fallback: e.Message,
@@ -114,6 +131,16 @@ func send_message(e Event, color string) error {
 			},
 		},
 	}
+
+	return attachment
+}
+
+// Sends a message to the Slack channel about the Event.
+func send_message(e Event, color string) error {
+	api := slack.New(os.Getenv("SLACK_TOKEN"))
+	params := slack.PostMessageParameters{}
+
+	attachment := custom_deploy_attachment(e);
 
 	// Use a color if provided, otherwise try to guess.
 	if color != "" {
