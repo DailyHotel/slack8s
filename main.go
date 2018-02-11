@@ -225,10 +225,12 @@ func main() {
 		// or fresh start.
 		diff := time.Now().Sub(e.LastTimestamp)
 		diffMinutes := int(diff.Minutes())
-		if diffMinutes > 1 {
+		if diffMinutes > 1 && !strings.Contains(e.Message, "killed") {
 			log.Printf("Supressed %s minute old message: %s", strconv.Itoa(diffMinutes), e.Message)
 			send = false
 		}
+
+		// elastalert detect "killed" log word..
 
 		if send {
 			err = send_message(e, color)
